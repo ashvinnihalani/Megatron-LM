@@ -116,6 +116,8 @@ class GroupedMLP(MegatronModule):
         else:
             self.activation_func = self.config.activation_func
 
+        self.expert_dropout = torch.nn.Dropout(self.config.expert_dropout)
+
         # How many feature each rank holds for fc1 and fc2, respectively.
         tp_size = parallel_state.get_expert_tensor_parallel_world_size()
         tp_rank = parallel_state.get_expert_tensor_parallel_rank()
@@ -222,6 +224,13 @@ class GroupedMLP(MegatronModule):
             )
 
             intermediate_parallel = self.activation_func(fc1_output)
+
+            if self.config.sequence_parallel:
+                with tensor_parallel.get_cuda_rng_tracker().fork()
+                    intermediate_parallel = self.expert_dropout(intermediate_parallel)
+            else:
+                intermediate_parallel = self.expert_dropout(intermediate_parallel)
+                    
 
             fc2_output = gg.ops.gmm(intermediate_parallel, w2, tokens_per_expert, trans_b=False)
         else:
